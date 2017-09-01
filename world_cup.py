@@ -35,10 +35,12 @@ def _drop_unbalanced_matches(data):
     """
     keep = []
     index = 0
+    #dropping columns with nan (for any match that doesnt have info about both teams)
     data = data.dropna()
     while index < len(data) - 1:
         skipped = False
         for col in data:
+            #skip any column where there is nan
             if isinstance(col, float) and math.isnan(col):
                 keep.append(False)
                 index += 1
@@ -47,17 +49,24 @@ def _drop_unbalanced_matches(data):
         if skipped:
             pass
         elif data.iloc[index]['matchid'] == data.iloc[index+1]['matchid']:
+            #slice data and append to keep array
             keep.append(True)
             keep.append(True)
+            #since we are appending two temas the index iterates by 2
             index += 2
         else:
+            #else dont append and continue
             keep.append(False)
             index += 1
     while len(keep) < len(data):
         keep.append(False)
     results = data[keep]
     if len(results) % 2 != 0:
+        #if the appended results have an instance where only one team data was
+        #appended, that means there was an error
+        #exception handling
         raise Exception('Unexpected results')
+    #returns the data of both teams, removes those that have one or less 
     return results
 
 
@@ -79,25 +88,29 @@ def _splice(data):
     opp.columns = opp_cols
     opp = opp.apply(_swap_pairwise)
     del opp['opp_is_home']
-    
+    #data from both teams will be spliced into a single game
     return data.join(opp)
 
 
 def split(data, test_proportion=0.4):
     """ Splits a dataframe into a training set and a test set.
-        Must be careful because back-to-back rows are expeted to
+        Must be careful because back-to-back rows are expected to
         represent the same game, so they both must go in the 
         test set or both in the training set.
     """
     
     train_vec = []
     if len(data) % 2 != 0:
+        #has to be a game with both teams' data
         raise Exception('Unexpected data length')
     while len(train_vec) < len(data):
+        #append random games into the training set
+        #need to look what test_proportion is
         rnd = random.random()
         train_vec.append(rnd > test_proportion) 
         train_vec.append(rnd > test_proportion)
             
+    #appends all val as not val or FALSE
     test_vec = [not val for val in train_vec]
     train = data[train_vec]
     test = data[test_vec]
@@ -161,7 +174,7 @@ def validate(label, target, predictions, baseline=0.5, compute_auc=False,
     if baseline > 1.0:
         # Baseline number is expected count, not proportion. Get the proportion.
         baseline = baseline * 1.0 / len(target)
-
+    #Make an iterator that aggregates elements from each of the iterables.
     zipped = sorted(zip(target, predictions), key=lambda tup: -tup[1])
     expect = len(target) * baseline
     
@@ -273,6 +286,8 @@ def _team_test_prob(target):
         team A. Use predictions in both directions to come up with
         an overall probability.
     """
+    #testing for each team probability of winning
+    #not a versus, gets data from both instances
     results = []
     for idx in range(len(target)/2):
         game0 = float(target.iloc[idx*2])
